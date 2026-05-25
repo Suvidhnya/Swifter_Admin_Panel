@@ -34,10 +34,22 @@ router.get('/', authenticate, isAdminOrHigher, async (req: AuthRequest, res) => 
       .skip((page - 1) * limit)
       .sort({ createdAt: -1 });
 
+    const usersData = users.map((user) => ({
+      id: user._id.toString(),
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      role: user.role,
+      isActive: user.isActive,
+      lastLogin: user.lastLogin,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt
+    }));
+
     const total = await User.countDocuments(filter);
 
     res.json({
-      users,
+      users: usersData,
       pagination: { page, limit, total, pages: Math.ceil(total / limit) }
     });
   } catch (error) {
@@ -45,11 +57,11 @@ router.get('/', authenticate, isAdminOrHigher, async (req: AuthRequest, res) => 
   }
 });
 
-// Create user (Super Admin only)
+// Create user (Admin or higher)
 router.post(
   '/',
   authenticate,
-  isSuperAdmin,
+  isAdminOrHigher,
   body('email').isEmail().normalizeEmail(),
   body('password').isLength({ min: 8 }),
   body('firstName').trim().notEmpty(),
@@ -63,6 +75,11 @@ router.post(
 
     try {
       const { email, password, firstName, lastName, role } = req.body;
+
+      // Only Super Admin can create super_admin users
+      if (role === 'super_admin' && req.user?.role !== 'super_admin') {
+        return res.status(403).json({ error: 'Only Super Admin can create super_admin users' });
+      }
 
       const existingUser = await User.findOne({ email });
       if (existingUser) {
@@ -111,7 +128,18 @@ router.get('/:id', authenticate, isAdminOrHigher, async (req: AuthRequest, res) 
 // Update user (Admin or higher)
 router.put('/:id', authenticate, isAdminOrHigher, async (req: AuthRequest, res) => {
   try {
-    const { firstName, lastName, role, isActive } = req.body;
+    const { firstName, lastName, role, isActive, email, password } = req.body;
+
+    // Fetch the target user to enforce immutable credentials for super_admin accounts
+    const targetUser = await User.findById(req.params.id).select('-password');
+    if (!targetUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Prevent changing email or password for super_admin accounts
+    if (targetUser.role === 'super_admin' && (email || password)) {
+      return res.status(403).json({ error: 'Cannot change email or password for super_admin accounts' });
+    }
 
     // Only Super Admin can change roles
     if (role && req.user?.role !== 'super_admin') {
