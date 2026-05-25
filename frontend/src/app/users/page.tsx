@@ -2,19 +2,20 @@
 
 import { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
-import { useRequireRole } from '@/hooks/useAuth';
+import { useRequireRole, useAuth } from '@/hooks/useAuth';
 import { Search, Plus, Edit, Trash2, Lock, Unlock } from 'lucide-react';
 import api from '@/lib/api';
 import { User } from '@/types';
 
 export default function Users() {
   useRequireRole(['super_admin', 'admin']);
+  const { user } = useAuth();
 
   const [users, setUsers] = useState<User[]>([]);
-  const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0 });
+  const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, pages: 1 });
   const [search, setSearch] = useState('');
   const [role, setRole] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -93,6 +94,7 @@ export default function Users() {
   };
 
   const handleDeactivate = async (id: string) => {
+    if (!confirm('Are you sure you want to deactivate this user?')) return;
     try {
       await api.post(`/users/${id}/deactivate`);
       fetchUsers();
@@ -109,7 +111,7 @@ export default function Users() {
       password: '',
       role: user.role
     });
-    setEditingId(user.id);
+    setEditingId(user.id ?? user._id ?? null);
     setShowForm(true);
   };
 
@@ -122,23 +124,25 @@ export default function Users() {
             <h1 className="text-3xl font-bold text-gray-900">Users</h1>
             <p className="text-gray-600 mt-1">Manage team members and their access levels</p>
           </div>
-          <button
-            onClick={() => {
-              setShowForm(true);
-              setEditingId(null);
-              setFormData({
-                email: '',
-                firstName: '',
-                lastName: '',
-                password: '',
-                role: 'support_user'
-              });
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
-          >
-            <Plus size={20} />
-            New User
-          </button>
+          {(user?.role === 'super_admin' || user?.role === 'admin') && (
+            <button
+              onClick={() => {
+                setShowForm(true);
+                setEditingId(null);
+                setFormData({
+                  email: '',
+                  firstName: '',
+                  lastName: '',
+                  password: '',
+                  role: 'support_user'
+                });
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+            >
+              <Plus size={20} />
+              New User
+            </button>
+          )}
         </div>
 
         {/* Filters */}
@@ -215,7 +219,7 @@ export default function Users() {
                       required
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     >
-                      <option value="super_admin">Super Admin</option>
+                      {user?.role === 'super_admin' && <option value="super_admin">Super Admin</option>}
                       <option value="admin">Admin</option>
                       <option value="product_manager">Product Manager</option>
                       <option value="support_user">Support User</option>
@@ -302,7 +306,7 @@ export default function Users() {
               <tbody className="divide-y divide-gray-200">
                 {users.length > 0 ? (
                   users.map(user => (
-                    <tr key={user.id} className="hover:bg-gray-50">
+                    <tr key={user.id ?? user._id ?? user.email} className="hover:bg-gray-50">
                       <td className="px-6 py-4 text-sm font-medium text-gray-900">
                         {user.firstName} {user.lastName}
                       </td>
@@ -333,7 +337,7 @@ export default function Users() {
                         </button>
                         {user.isActive ? (
                           <button
-                            onClick={() => handleDeactivate(user.id)}
+                            onClick={() => handleDeactivate(user.id ?? user._id ?? '')}
                             className="p-2 text-yellow-600 hover:bg-yellow-50 rounded"
                           >
                             <Lock size={18} />
@@ -344,7 +348,7 @@ export default function Users() {
                           </span>
                         )}
                         <button
-                          onClick={() => handleDelete(user.id)}
+                          onClick={() => handleDelete(user.id ?? user._id ?? '')}
                           className="p-2 text-red-600 hover:bg-red-50 rounded"
                         >
                           <Trash2 size={18} />

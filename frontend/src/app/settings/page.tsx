@@ -11,7 +11,7 @@ export default function Settings() {
   useRequireRole(['super_admin']);
 
   const [settings, setSettings] = useState<Setting[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [formData, setFormData] = useState({

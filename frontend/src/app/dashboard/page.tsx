@@ -102,7 +102,7 @@ export default function Dashboard() {
           <div className="space-y-3">
             {stats.recentUsers.length > 0 ? (
               stats.recentUsers.map(u => (
-                <div key={u.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div key={u.id ?? u._id ?? u.email} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div>
                     <p className="font-medium text-gray-900">{u.firstName} {u.lastName}</p>
                     <p className="text-sm text-gray-600">{u.email}</p>
