@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import { body, validationResult } from 'express-validator';
-import jwt, { SignOptions } from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import { authenticate, AuthRequest } from '../middleware/auth.js';
+import { JWT_SECRET, JWT_EXPIRATION } from '../config.js';
 
 const router = Router();
 
@@ -29,10 +30,10 @@ router.post(
       user.lastLogin = new Date();
       await user.save();
 
-      const token = (jwt.sign as any)(
+      const token = jwt.sign(
         { id: user._id, email: user.email, role: user.role },
-        (process.env.JWT_SECRET || 'your-secret-key') as string,
-        { expiresIn: process.env.JWT_EXPIRATION || '7d' }
+        JWT_SECRET as jwt.Secret,
+        { expiresIn: JWT_EXPIRATION } as jwt.SignOptions
       );
 
       res.json({

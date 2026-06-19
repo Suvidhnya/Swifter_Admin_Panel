@@ -31,7 +31,7 @@ A complete, fully-functional admin panel for Swifter with:
 ### 📊 **By The Numbers**
 - 3,500+ lines of code
 - 40+ TypeScript files
-- 8 major pages
+- 8 major    
 - 15+ REST API endpoints
 - 4 roles with hierarchical permissions
 - 100% TypeScript

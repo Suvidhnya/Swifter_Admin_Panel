@@ -17,7 +17,7 @@ export const useAuthStore = create<AuthStore>()(
       user: null,
       token: null,
       isAuthenticated: false,
-      isLoading: false,
+      isLoading: true,
       error: null,
 
       login: async (email: string, password: string) => {
@@ -53,7 +53,7 @@ export const useAuthStore = create<AuthStore>()(
       verifyToken: async () => {
         const token = localStorage.getItem('token');
         if (!token) {
-          set({ isAuthenticated: false });
+          set({ isAuthenticated: false, isLoading: false });
           return;
         }
 

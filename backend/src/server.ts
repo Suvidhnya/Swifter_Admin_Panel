@@ -3,18 +3,14 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import dotenv from 'dotenv';
+import { PORT, MONGODB_URI, CORS_ORIGIN } from './config.js';
 
 import authRoutes from './routes/auth.js';
 import usersRoutes from './routes/users.js';
 import productsRoutes from './routes/products.js';
 import settingsRoutes from './routes/settings.js';
 
-dotenv.config();
-
 const app = express();
-const PORT = process.env.PORT || 5000;
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/swifter-admin';
 
 // Security middleware
 app.use(helmet());
@@ -33,16 +29,20 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 // Database connection
 let mongoConnected = false;
 
-mongoose
-  .connect(MONGODB_URI)
-  .then(() => {
+const connectDatabase = async () => {
+  try {
+    await mongoose.connect(MONGODB_URI, {
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+      family: 4
+    });
     mongoConnected = true;
     console.log('✅ Connected to MongoDB');
-  })
-  .catch((err) => {
-    console.warn('⚠️ MongoDB connection failed:', err.message);
+  } catch (err) {
+    console.warn('⚠️ MongoDB connection failed:', (err as Error).message);
     console.warn('⚠️ Server will run in limited mode without database');
-  });
+  }
+};
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -66,7 +66,18 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   res.status(500).json({ error: 'Internal Server Error' });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Swifter Admin Backend running on http://localhost:${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
+const startServer = async () => {
+  await connectDatabase();
+
+  app.listen(PORT, () => {
+    console.log(`🚀 Swifter Admin Backend running on http://localhost:${PORT}`);
+    console.log(`📊 Health check: http://localhost:${PORT}/health`);
+    if (!mongoConnected) {
+      console.warn('⚠️ Backend started without MongoDB connection. Some endpoints will not work.');
+    }
+  });
+};
+
+startServer().catch((err) => {
+  console.error('Failed to start server:', err);
 });
