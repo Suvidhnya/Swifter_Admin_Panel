@@ -18,6 +18,7 @@ export default function Users() {
   const [, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [formData, setFormData] = useState({
     email: '',
     firstName: '',
@@ -50,9 +51,32 @@ export default function Users() {
     fetchUsers();
   }, [pagination.page, search, role]);
 
+  const uploadAvatar = async (id: string, file: File | null) => {
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    await api.post(`/users/${id}/avatar`, formData);
+  };
+
+  const resetForm = () => {
+    setShowForm(false);
+    setEditingId(null);
+    setAvatarFile(null);
+    setFormData({
+      email: '',
+      firstName: '',
+      lastName: '',
+      password: '',
+      role: 'support_user'
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      let savedId = editingId;
+
       if (editingId) {
         const updateData = { ...formData };
         if (!updateData.password) {
@@ -66,17 +90,15 @@ export default function Users() {
           alert('Password is required for new users');
           return;
         }
-        await api.post('/users', formData);
+        const response = await api.post('/users', formData);
+        savedId = response.data.user.id || response.data.user._id;
       }
-      setShowForm(false);
-      setEditingId(null);
-      setFormData({
-        email: '',
-        firstName: '',
-        lastName: '',
-        password: '',
-        role: 'support_user'
-      });
+
+      if (savedId && avatarFile) {
+        await uploadAvatar(savedId, avatarFile);
+      }
+
+      resetForm();
       fetchUsers();
     } catch (error) {
       console.error('Failed to save user:', error);
@@ -111,6 +133,7 @@ export default function Users() {
       password: '',
       role: user.role
     });
+    setAvatarFile(null);
     setEditingId(user.id ?? user._id ?? null);
     setShowForm(true);
   };
@@ -269,10 +292,21 @@ export default function Users() {
                   />
                 </div>
 
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Profile Image
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg,image/gif"
+                    onChange={(e) => setAvatarFile(e.target.files?.[0] ?? null)}
+                    className="w-full text-sm text-gray-600"
+                  />
+                </div>
                 <div className="flex justify-end gap-3 pt-4 border-t">
                   <button
                     type="button"
-                    onClick={() => setShowForm(false)}
+                    onClick={resetForm}
                     className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
                   >
                     Cancel
@@ -308,7 +342,20 @@ export default function Users() {
                   users.map(user => (
                     <tr key={user.id ?? user._id ?? user.email} className="hover:bg-gray-50">
                       <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                        {user.firstName} {user.lastName}
+                        <div className="flex items-center gap-3">
+                          {user.profileImageUrl ? (
+                            <img
+                              src={user.profileImageUrl}
+                              alt={`${user.firstName} ${user.lastName}`}
+                              className="w-10 h-10 rounded-full object-cover border border-gray-200"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-sm font-bold">
+                              {`${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase()}
+                            </div>
+                          )}
+                          <div>{user.firstName} {user.lastName}</div>
+                        </div>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600">{user.email}</td>
                       <td className="px-6 py-4 text-sm">

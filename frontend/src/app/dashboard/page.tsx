@@ -16,6 +16,9 @@ export default function Dashboard() {
     recentUsers: [] as UserType[]
   });
 
+  const getInitials = (firstName: string, lastName: string) =>
+    `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase();
+
   useEffect(() => {
     const fetchStats = async () => {
       try {
@@ -42,9 +45,24 @@ export default function Dashboard() {
   return (
     <DashboardLayout>
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Welcome back, {user?.firstName}!</h1>
-        <p className="text-gray-600 mt-2">Here's what's happening in your admin panel today.</p>
+      <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex items-center gap-4">
+          {user?.profileImageUrl ? (
+            <img
+              src={user.profileImageUrl}
+              alt={`${user.firstName} ${user.lastName}`}
+              className="w-16 h-16 rounded-full object-cover border border-gray-200"
+            />
+          ) : (
+            <div className="w-16 h-16 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xl font-bold">
+              {getInitials(user?.firstName || '', user?.lastName || '')}
+            </div>
+          )}
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Welcome back, {user?.firstName}!</h1>
+            <p className="text-gray-600 mt-2">Here's what's happening in your admin panel today.</p>
+          </div>
+        </div>
       </div>
 
       {/* Stats Grid */}
@@ -103,9 +121,22 @@ export default function Dashboard() {
             {stats.recentUsers.length > 0 ? (
               stats.recentUsers.map(u => (
                 <div key={u.id ?? u._id ?? u.email} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-gray-900">{u.firstName} {u.lastName}</p>
-                    <p className="text-sm text-gray-600">{u.email}</p>
+                  <div className="flex items-center gap-3">
+                    {u.profileImageUrl ? (
+                      <img
+                        src={u.profileImageUrl}
+                        alt={`${u.firstName} ${u.lastName}`}
+                        className="w-10 h-10 rounded-full object-cover border border-gray-200"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-sm font-bold">
+                        {getInitials(u.firstName, u.lastName)}
+                      </div>
+                    )}
+                    <div>
+                      <p className="font-medium text-gray-900">{u.firstName} {u.lastName}</p>
+                      <p className="text-sm text-gray-600">{u.email}</p>
+                    </div>
                   </div>
                   <span className="text-xs px-2 py-1 bg-primary-100 text-primary-700 rounded capitalize">
                     {u.role.replace('_', ' ')}

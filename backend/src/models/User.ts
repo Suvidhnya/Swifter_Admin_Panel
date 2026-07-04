@@ -14,6 +14,7 @@ export interface IUser extends Document {
   firstName: string;
   lastName: string;
   role: UserRole;
+  profileImageUrl?: string;
   isActive: boolean;
   lastLogin: Date | null;
   createdAt: Date;
@@ -57,6 +58,10 @@ const userSchema = new Schema<IUser>(
     lastLogin: {
       type: Date,
       default: null
+    },
+    profileImageUrl: {
+      type: String,
+      default: ''
     }
   },
   { timestamps: true }

@@ -1,10 +1,29 @@
+import path from 'path';
+import multer from 'multer';
 import { Router } from 'express';
 import { body, validationResult } from 'express-validator';
+import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import User from '../models/User.js';
 import { authenticate, AuthRequest } from '../middleware/auth.js';
 import { isSuperAdmin, isAdminOrHigher } from '../middleware/roleCheck.js';
+import { AWS_ACCESS_KEY_ID, AWS_REGION, AWS_SECRET_ACCESS_KEY, AWS_S3_BUCKET } from '../config.js';
+
+interface MulterAuthRequest extends AuthRequest {
+  file?: Express.Multer.File;
+}
 
 const router = Router();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+
+const s3Client = new S3Client({
+  region: AWS_REGION,
+  credentials: {
+    accessKeyId: AWS_ACCESS_KEY_ID,
+    secretAccessKey: AWS_SECRET_ACCESS_KEY
+  }
+});
+
+const buildS3Url = (key: string) => `https://${AWS_S3_BUCKET}.s3.${AWS_REGION}.amazonaws.com/${key}`;
 
 // Get all users with pagination and filtering
 router.get('/', authenticate, isAdminOrHigher, async (req: AuthRequest, res) => {
@@ -42,6 +61,7 @@ router.get('/', authenticate, isAdminOrHigher, async (req: AuthRequest, res) => 
       role: user.role,
       isActive: user.isActive,
       lastLogin: user.lastLogin,
+      profileImageUrl: user.profileImageUrl || '',
       createdAt: user.createdAt,
       updatedAt: user.updatedAt
     }));
@@ -125,6 +145,63 @@ router.get('/:id', authenticate, isAdminOrHigher, async (req: AuthRequest, res) 
   }
 });
 
+// Upload or update user avatar
+router.post('/:id/avatar', authenticate, upload.single('avatar'), async (req: MulterAuthRequest, res) => {
+  try {
+    const userId = req.params.id;
+    const requesterId = req.user?.id;
+    const requesterRole = req.user?.role;
+
+    if (!requesterId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    if (requesterId !== userId && !['super_admin', 'admin'].includes(requesterRole || '')) {
+      return res.status(403).json({ error: 'Forbidden: cannot update this user avatar' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'Avatar image file is required' });
+    }
+
+    if (!AWS_S3_BUCKET || !AWS_REGION || !AWS_ACCESS_KEY_ID || !AWS_SECRET_ACCESS_KEY) {
+      return res.status(500).json({ error: 'AWS S3 configuration is missing' });
+    }
+
+    const extension = path.extname(req.file.originalname).toLowerCase() || '.jpg';
+    const key = `avatars/${userId}-${Date.now()}${extension}`;
+
+    await s3Client.send(
+      new PutObjectCommand({
+        Bucket: AWS_S3_BUCKET,
+        Key: key,
+        Body: req.file.buffer,
+        ContentType: req.file.mimetype
+      })
+    );
+
+    const profileImageUrl = buildS3Url(key);
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { profileImageUrl },
+      { new: true }
+    ).select('-password');
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({
+      message: 'Avatar uploaded successfully',
+      profileImageUrl: user.profileImageUrl
+    });
+  } catch (error: any) {
+    console.error('Avatar upload error:', error);
+    const message = error?.message || 'Server error';
+    res.status(500).json({ error: `Avatar upload failed: ${message}` });
+  }
+});
+
 // Update user (Admin or higher)
 router.put('/:id', authenticate, isAdminOrHigher, async (req: AuthRequest, res) => {
   try {
@@ -141,8 +218,8 @@ router.put('/:id', authenticate, isAdminOrHigher, async (req: AuthRequest, res) 
       return res.status(403).json({ error: 'Cannot change email or password for super_admin accounts' });
     }
 
-    // Only Super Admin can change roles
-    if (role && req.user?.role !== 'super_admin') {
+    // Only Super Admin can change roles. Allow unchanged role values from admins.
+    if (role && role !== targetUser.role && req.user?.role !== 'super_admin') {
       return res.status(403).json({ error: 'Only Super Admin can change user roles' });
     }
 
@@ -151,7 +228,7 @@ router.put('/:id', authenticate, isAdminOrHigher, async (req: AuthRequest, res) 
       {
         ...(firstName && { firstName }),
         ...(lastName && { lastName }),
-        ...(role && { role }),
+        ...(role && role !== targetUser.role ? { role } : {}),
         ...(typeof isActive === 'boolean' && { isActive })
       },
       { new: true }

@@ -43,7 +43,8 @@ router.post(
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
-          role: user.role
+          role: user.role,
+          profileImageUrl: user.profileImageUrl || ''
         }
       });
     } catch (error) {
@@ -67,7 +68,8 @@ router.get('/verify', authenticate, async (req: AuthRequest, res) => {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
-        role: user.role
+        role: user.role,
+        profileImageUrl: user.profileImageUrl || ''
       }
     });
   } catch (error) {

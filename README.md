@@ -115,6 +115,7 @@ Password: AdminPassword123!
 | [FEATURES.md](./FEATURES.md) | Detailed features and permissions matrix |
 | [backend/README.md](./backend/README.md) | Backend API documentation |
 | [frontend/README.md](./frontend/README.md) | Frontend UI documentation |
+| [AWS_S3_PROFILE_IMAGES.md](./AWS_S3_PROFILE_IMAGES.md) | Guide for configuring AWS S3 profile images |
 
 ## 🏗️ Architecture
 

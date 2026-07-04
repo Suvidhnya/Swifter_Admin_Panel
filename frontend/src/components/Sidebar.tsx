@@ -19,6 +19,7 @@ const Sidebar = () => {
 
   const menuItems = [
     { href: '/dashboard', icon: Home, label: 'Dashboard' },
+    { href: '/profile', icon: Users, label: 'Profile' },
     { href: '/users', icon: Users, label: 'Users', roles: ['super_admin', 'admin'] },
     { href: '/products', icon: Package, label: 'Products' },
     { href: '/settings', icon: Settings, label: 'Settings', roles: ['super_admin'] }
