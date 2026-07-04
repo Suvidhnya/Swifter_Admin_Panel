@@ -28,9 +28,21 @@ if (configuredOrigin) {
   allowedOrigins.push(configuredOrigin);
 }
 
+const isAllowedOrigin = (origin: string | undefined) => {
+  if (!origin) {
+    return true;
+  }
+
+  if (allowedOrigins.includes(origin)) {
+    return true;
+  }
+
+  return /(?:^|\.)vercel\.app$/i.test(origin) || /(?:^|\.)onrender\.com$/i.test(origin);
+};
+
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (isAllowedOrigin(origin)) {
       callback(null, true);
       return;
     }
