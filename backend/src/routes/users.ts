@@ -15,13 +15,23 @@ interface MulterAuthRequest extends AuthRequest {
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
-const s3Client = new S3Client({
-  region: AWS_REGION,
-  credentials: {
-    accessKeyId: AWS_ACCESS_KEY_ID,
-    secretAccessKey: AWS_SECRET_ACCESS_KEY
+let s3Client: S3Client | null = null;
+
+const getS3Client = () => {
+  if (!AWS_REGION || !AWS_ACCESS_KEY_ID || !AWS_SECRET_ACCESS_KEY) {
+    throw new Error('AWS S3 configuration is incomplete');
   }
-});
+  if (!s3Client) {
+    s3Client = new S3Client({
+      region: AWS_REGION,
+      credentials: {
+        accessKeyId: AWS_ACCESS_KEY_ID,
+        secretAccessKey: AWS_SECRET_ACCESS_KEY
+      }
+    });
+  }
+  return s3Client;
+};
 
 const buildS3Url = (key: string) => `https://${AWS_S3_BUCKET}.s3.${AWS_REGION}.amazonaws.com/${key}`;
 
@@ -171,7 +181,7 @@ router.post('/:id/avatar', authenticate, upload.single('avatar'), async (req: Mu
     const extension = path.extname(req.file.originalname).toLowerCase() || '.jpg';
     const key = `avatars/${userId}-${Date.now()}${extension}`;
 
-    await s3Client.send(
+    await getS3Client().send(
       new PutObjectCommand({
         Bucket: AWS_S3_BUCKET,
         Key: key,
